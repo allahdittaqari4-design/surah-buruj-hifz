@@ -17,7 +17,7 @@
   #status{font-weight:700;text-align:center;margin:10px 0}
   #heard{background:#f0f3f0;border-radius:12px;padding:10px;min-height:28px}
   .ok{color:#176b3a}
-  .bad{color:#b32121;text-decoration:underline;font-weight:800}
+  .bad{color:#b32121;text-decoration:underline;font-weight:800;background:#ffe0e0;border-radius:4px;padding:1px 3px}
   .target-word{padding:2px 3px;border-radius:6px}
   .ayah-separator{color:#888;font-size:22px;padding:0 4px}
   .small{font-size:13px;color:#6b746c;line-height:1.7}
@@ -27,7 +27,7 @@
 <body>
 <div class="wrap">
   <h1>سورۃ البروج — حفظ سنانے والا</h1>
-  <div class="sub">مائیک دبائیں، پوری سورت ایک سانس میں سنائیں؛ ایپ لگاتار سنے گی اور صرف غلطی پر نشاندہی کرے گی۔</div>
+  <div class="sub">مائیک دبائیں، پوری سورت پڑھتے جائیں؛ ایپ صرف غلطی پر نشاندہی کرے گی۔</div>
 
   <div class="card controls">
     <button id="start">🎙️ سننا شروع کریں</button>
@@ -43,21 +43,13 @@
     <div id="heard">—</div>
     <div id="message" class="small"></div>
   </div>
-
-  <div class="card small">
-    <b>اہم نوٹ:</b> یہ ایپ پوری سورت کو ایک ہی تسلسل میں سنتی ہے۔ آپ کہیں بھی رک سکتے ہیں۔ جب آپ غلطی کریں گے، تو وہیں نشاندہی ہوگی، اور جب آپ صحیح پڑھیں گے، تو ایپ آگے بڑھ جائے گی۔
-  </div>
 </div>
 
 <script>
-// پوری سورت — ہر آیت کے آخر میں ﴿﴾ کا نشان
 const fullSurah = "وَالسَّمَاءِ ذَاتِ الْبُرُوجِ ﴿١﴾ وَالْيَوْمِ الْمَوْعُودِ ﴿٢﴾ وَشَاهِدٍ وَمَشْهُودٍ ﴿٣﴾ قُتِلَ أَصْحَابُ الْأُخْدُودِ ﴿٤﴾ النَّارِ ذَاتِ الْوَقُودِ ﴿٥﴾ إِذْ هُمْ عَلَيْهَا قُعُودٌ ﴿٦﴾ وَهُمْ عَلَىٰ مَا يَفْعَلُونَ بِالْمُؤْمِنِينَ شُهُودٌ ﴿٧﴾ وَمَا نَقَمُوا مِنْهُمْ إِلَّا أَنْ يُؤْمِنُوا بِاللَّهِ الْعَزِيزِ الْحَمِيدِ ﴿٨﴾ الَّذِي لَهُ مُلْكُ السَّمَاوَاتِ وَالْأَرْضِ وَاللَّهُ عَلَىٰ كُلِّ شَيْءٍ شَهِيدٌ ﴿٩﴾ إِنَّ الَّذِينَ فَتَنُوا الْمُؤْمِنِينَ وَالْمُؤْمِنَاتِ ثُمَّ لَمْ يَتُوبُوا فَلَهُمْ عَذَابُ جَهَنَّمَ وَلَهُمْ عَذَابُ الْحَرِيقِ ﴿١٠﴾ إِنَّ الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ لَهُمْ جَنَّاتٌ تَجْرِي مِنْ تَحْتِهَا الْأَنْهَارُ ذَٰلِكَ الْفَوْزُ الْكَبِيرُ ﴿١١﴾ إِنَّ بَطْشَ رَبِّكَ لَشَدِيدٌ ﴿١٢﴾ إِنَّهُ هُوَ يُبْدِئُ وَيُعِيدُ ﴿١٣﴾ وَهُوَ الْغَفُورُ الْوَدُودُ ﴿١٤﴾ ذُو الْعَرْشِ الْمَجِيدُ ﴿١٥﴾ فَعَّالٌ لِمَا يُرِيدُ ﴿١٦﴾ هَلْ أَتَاكَ حَدِيثُ الْجُنُودِ ﴿١٧﴾ فِرْعَوْنَ وَثَمُودَ ﴿١٨﴾ بَلِ الَّذِينَ كَفَرُوا فِي تَكْذِيبٍ ﴿١٩﴾ وَاللَّهُ مِنْ وَرَائِهِمْ مُحِيطٌ ﴿٢٠﴾ بَلْ هُوَ قُرْآنٌ مَجِيدٌ ﴿٢١﴾ فِي لَوْحٍ مَحْفُوظٍ ﴿٢٢﴾";
 
 let targetWords = [];
-let spokenWords = [];
 let recognition=null, listening=false, finalText="";
-let lastErrorIndex = -1; // پچھلی غلطی کی جگہ یاد رکھنے کے لیے
-
 const ayahEl=document.getElementById("ayah");
 const heardEl=document.getElementById("heard"), msgEl=document.getElementById("message");
 const statusEl=document.getElementById("status");
@@ -84,20 +76,14 @@ function removeRepeatedWords(arr){
   return cleaned;
 }
 
-// ✅ نیا فنکشن: صرف غلطی کا پتہ لگاتا ہے اور آگے بڑھنے دیتا ہے
+// ✅ صرف غلطی کی نشاندہی — صحیح پر بالکل خاموش
 function checkErrors(spoken){
   if(!spoken || !spoken.length) return;
   
   let got = words(spoken);
   got = removeRepeatedWords(got);
   
-  // اگر صارف نے پہلے سے کچھ پڑھ رکھا ہے، تو اسے شامل کریں
-  if(got.length > spokenWords.length){
-    spokenWords = got;
-  }
-  
   let out = "", errors = 0;
-  let firstErrorIndex = -1;
   const n = Math.min(targetWords.length, got.length);
   
   for(let k=0; k<n; k++){
@@ -106,38 +92,33 @@ function checkErrors(spoken){
     } else {
       out += `<span class="bad">${got[k]}</span> `;
       errors++;
-      if(firstErrorIndex === -1) firstErrorIndex = k;
+    }
+  }
+  
+  // باقی الفاظ جو صارف نے پڑھے لیکن قرآن میں نہیں
+  if(got.length > targetWords.length){
+    for(let k=targetWords.length; k<got.length; k++){
+      out += `<span class="bad">${got[k]}</span> `;
+      errors++;
     }
   }
   
   heardEl.innerHTML = out || "—";
   
-  // اگر غلطی ہو
+  // ✅ صرف غلطی پر پیغام — صحیح پر کچھ نہیں
   if(errors > 0){
-    // اگر یہ وہی غلطی ہے جو پہلے تھی، تو صارف کو بتائیں کہ دوبارہ پڑھے
-    if(lastErrorIndex === firstErrorIndex){
-      msgEl.innerHTML = `<b class="bad">⚠️ وہی غلطی — دوبارہ صحیح پڑھیں۔</b>`;
-      statusEl.textContent = "⚠️ دوبارہ کوشش کریں";
-    } else {
-      msgEl.innerHTML = `<b class="bad">⚠️ ${errors} لفظ(وں) میں فرق ملا۔</b>`;
-      statusEl.textContent = "⚠️ غلطی ملی — صحیح پڑھیں";
-      lastErrorIndex = firstErrorIndex;
-    }
+    msgEl.innerHTML = `<b class="bad">⚠️ ${errors} لفظ(وں) میں فرق ہے</b>`;
+    statusEl.textContent = "⚠️ غلطی — صحیح پڑھیں";
   } else {
-    // کوئی غلطی نہیں — آگے بڑھیں
-    msgEl.innerHTML = `<b class="ok">✅ اب تک کے الفاظ درست ہیں۔</b>`;
-    statusEl.textContent = "👂 سن رہا ہوں… پڑھتے جائیں";
-    lastErrorIndex = -1; // غلطی کا ریکارڈ صاف کریں
+    // صحیح ہے تو بالکل خاموش
+    msgEl.innerHTML = "";
+    statusEl.textContent = "🎙️ سن رہا ہوں…";
   }
   
-  // پوری سورت مکمل ہونے پر
-  if(got.length >= targetWords.length){
-    msgEl.innerHTML = '<b class="ok">ماشاءاللہ! آپ نے پوری سورت درست سنائی۔</b>';
-    statusEl.textContent = "✅ سورت مکمل اور درست";
-    if("speechSynthesis" in window){
-      const u = new SpeechSynthesisUtterance("ماشاءاللہ، پوری سورت درست ہے");
-      u.lang = "ur-PK"; speechSynthesis.cancel(); speechSynthesis.speak(u);
-    }
+  // پوری سورت مکمل
+  if(got.length >= targetWords.length && errors === 0){
+    msgEl.innerHTML = '<b class="ok">✅ سورت مکمل</b>';
+    statusEl.textContent = "✅ مکمل";
     listening = false;
     if(recognition) recognition.stop();
   }
@@ -148,9 +129,9 @@ function makeRecognition(){
   if(!SR){statusEl.textContent="اس براؤزر میں آواز پہچاننے کی سہولت نہیں۔ Chrome استعمال کریں۔";return null;}
   const r=new SR();
   r.lang="ar-SA"; r.continuous=true; r.interimResults=true;
-  r.onstart=()=>{listening=true;finalText="";statusEl.textContent="🎙️ سن رہا ہوں… پوری سورت پڑھتے جائیں";};
-  r.onerror=e=>{statusEl.textContent="مائیک/آواز کا مسئلہ: "+e.error;};
-  r.onend=()=>{if(listening){try{r.start()}catch(e){}}else statusEl.textContent="سننا بند ہے";};
+  r.onstart=()=>{listening=true;finalText="";statusEl.textContent="🎙️ سن رہا ہوں…";};
+  r.onerror=e=>{statusEl.textContent="مائیک کا مسئلہ: "+e.error;};
+  r.onend=()=>{if(listening){try{r.start()}catch(e){}}else statusEl.textContent="سننا بند";};
   
   r.onresult=e=>{
     let interim="";
@@ -159,10 +140,27 @@ function makeRecognition(){
       if(e.results[j].isFinal) finalText+=(finalText?" ":"")+t;
       else interim+=(interim?" ":"")+t;
     }
-    heardEl.textContent=(finalText+" "+interim).trim()||"—";
     
-    if(finalText.trim()){
-      checkErrors(finalText.trim());
+    // ✅ فوری لکھائی — جو پڑھا جائے فوراً دکھائیں
+    const displayText = (finalText + " " + interim).trim();
+    if(displayText){
+      // فوری لکھائی دکھائیں (بغیر جانچ کے)
+      let displayWords = words(displayText);
+      displayWords = removeRepeatedWords(displayWords);
+      let displayHtml = "";
+      for(let k=0; k<displayWords.length; k++){
+        if(k < targetWords.length && targetWords[k] === displayWords[k]){
+          displayHtml += `<span class="ok">${displayWords[k]}</span> `;
+        } else {
+          displayHtml += `<span class="bad">${displayWords[k]}</span> `;
+        }
+      }
+      heardEl.innerHTML = displayHtml || "—";
+      
+      // فوری جانچ
+      if(finalText.trim()){
+        checkErrors(finalText.trim());
+      }
     }
   };
   return r;
@@ -171,34 +169,30 @@ function makeRecognition(){
 document.getElementById("micTest").onclick=async()=>{
   try{
     if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      statusEl.textContent="اس ماحول میں مائیک کی اجازت دستیاب نہیں۔ Chrome کے HTTPS صفحے میں کھولیں۔";
+      statusEl.textContent="اس ماحول میں مائیک کی اجازت نہیں۔ Chrome کے HTTPS صفحے میں کھولیں۔";
       return;
     }
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
     stream.getTracks().forEach(t=>t.stop());
-    statusEl.textContent="✅ مائیک کی اجازت مل گئی۔ اب 'سننا شروع کریں' دبائیں۔";
+    statusEl.textContent="✅ مائیک کی اجازت مل گئی۔";
   }catch(e){
-    statusEl.textContent="❌ مائیک کی اجازت نہیں ملی۔ Chrome میں Microphone کو Allow کریں۔";
+    statusEl.textContent="❌ مائیک کی اجازت نہیں ملی۔";
   }
 };
 document.getElementById("start").onclick=()=>{
   if(!recognition) recognition=makeRecognition();
-  if(recognition){listening=true;finalText="";spokenWords=[];lastErrorIndex=-1;try{recognition.start()}catch(e){}}
+  if(recognition){listening=true;finalText="";try{recognition.start()}catch(e){}}
 };
 document.getElementById("stop").onclick=()=>{
   listening=false;
   if(recognition) recognition.stop();
-  statusEl.textContent="سننا بند ہے";
-  if(finalText.trim()){
-    checkErrors(finalText.trim());
-  }
+  statusEl.textContent="سننا بند";
 };
 
 // انیشیئلائز
 targetWords = words(fullSurah);
 const ws = fullSurah.split(" ");
 ayahEl.innerHTML = ws.map(w=>{
-  // اگر لفظ ﴿ یا ﴾ والا نشان ہے تو اسے خاص کلاس دیں
   if(w.includes("﴿") || w.includes("﴾")){
     return `<span class="ayah-separator">${w}</span>`;
   }
