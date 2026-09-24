@@ -48,68 +48,110 @@
 <script>
 const fullSurah = "وَالسَّمَاءِ ذَاتِ الْبُرُوجِ ﴿١﴾ وَالْيَوْمِ الْمَوْعُودِ ﴿٢﴾ وَشَاهِدٍ وَمَشْهُودٍ ﴿٣﴾ قُتِلَ أَصْحَابُ الْأُخْدُودِ ﴿٤﴾ النَّارِ ذَاتِ الْوَقُودِ ﴿٥﴾ إِذْ هُمْ عَلَيْهَا قُعُودٌ ﴿٦﴾ وَهُمْ عَلَىٰ مَا يَفْعَلُونَ بِالْمُؤْمِنِينَ شُهُودٌ ﴿٧﴾ وَمَا نَقَمُوا مِنْهُمْ إِلَّا أَنْ يُؤْمِنُوا بِاللَّهِ الْعَزِيزِ الْحَمِيدِ ﴿٨﴾ الَّذِي لَهُ مُلْكُ السَّمَاوَاتِ وَالْأَرْضِ وَاللَّهُ عَلَىٰ كُلِّ شَيْءٍ شَهِيدٌ ﴿٩﴾ إِنَّ الَّذِينَ فَتَنُوا الْمُؤْمِنِينَ وَالْمُؤْمِنَاتِ ثُمَّ لَمْ يَتُوبُوا فَلَهُمْ عَذَابُ جَهَنَّمَ وَلَهُمْ عَذَابُ الْحَرِيقِ ﴿١٠﴾ إِنَّ الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ لَهُمْ جَنَّاتٌ تَجْرِي مِنْ تَحْتِهَا الْأَنْهَارُ ذَٰلِكَ الْفَوْزُ الْكَبِيرُ ﴿١١﴾ إِنَّ بَطْشَ رَبِّكَ لَشَدِيدٌ ﴿١٢﴾ إِنَّهُ هُوَ يُبْدِئُ وَيُعِيدُ ﴿١٣﴾ وَهُوَ الْغَفُورُ الْوَدُودُ ﴿١٤﴾ ذُو الْعَرْشِ الْمَجِيدُ ﴿١٥﴾ فَعَّالٌ لِمَا يُرِيدُ ﴿١٦﴾ هَلْ أَتَاكَ حَدِيثُ الْجُنُودِ ﴿١٧﴾ فِرْعَوْنَ وَثَمُودَ ﴿١٨﴾ بَلِ الَّذِينَ كَفَرُوا فِي تَكْذِيبٍ ﴿١٩﴾ وَاللَّهُ مِنْ وَرَائِهِمْ مُحِيطٌ ﴿٢٠﴾ بَلْ هُوَ قُرْآنٌ مَجِيدٌ ﴿٢١﴾ فِي لَوْحٍ مَحْفُوظٍ ﴿٢٢﴾";
 
-let targetWords = [];
 let recognition=null, listening=false;
-let finalText=""; // صرف مکمل (final) ٹیکسٹ
-let interimText=""; // عبوری (interim) ٹیکسٹ
+let finalText="";
+let interimText="";
 
 const ayahEl=document.getElementById("ayah");
 const heardEl=document.getElementById("heard"), msgEl=document.getElementById("message");
 const statusEl=document.getElementById("status");
 
-function normalize(s){
+// ✅ صرف حروف کو صاف کریں (اعراب، نشانات، وقف وغیرہ ہٹا دیں)
+function cleanText(s){
   return s.normalize("NFD")
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g,"")
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g,"")  // اعراب
     .replace(/[إأٱآ]/g,"ا").replace(/ى/g,"ی").replace(/ي/g,"ی")
     .replace(/ؤ/g,"و").replace(/ئ/g,"ی")
-    .replace(/[ـۖۗۚۛۜۙۘۚۛ۞]/g,"")
+    .replace(/[ـۖۗۚۛۜۙۘۚۛ۞]/g,"")  // علامات وقف
     .replace(/[،؛,.!?؟]/g," ")
     .replace(/[^\u0600-\u06FF\s]/g," ")
     .replace(/\s+/g," ").trim();
 }
-function words(s){return normalize(s).split(" ").filter(Boolean)}
 
-function removeRepeatedWords(arr){
-  const cleaned = [];
-  for(let k=0; k<arr.length; k++){
-    if(k === 0 || arr[k] !== arr[k-1]){
-      cleaned.push(arr[k]);
-    }
-  }
-  return cleaned;
+// ✅ صرف حروف (بغیر اسپیس) نکالیں
+function getChars(s){
+  return cleanText(s).replace(/\s+/g,""); // سارے اسپیس ہٹا دیں
 }
 
-// ✅ صرف مکمل (final) ٹیکسٹ کی جانچ
+// ✅ نیا موازنہ: حروف کی سطح پر (الفاظ کی سطح پر نہیں)
 function checkFinalText(){
   if(!finalText.trim()) return;
   
-  let got = words(finalText);
-  got = removeRepeatedWords(got);
+  // قرآن کے صاف حروف
+  const targetChars = getChars(fullSurah);
+  // صارف کے صاف حروف
+  const gotChars = getChars(finalText);
   
-  let out = "", errors = 0;
-  const n = Math.min(targetWords.length, got.length);
+  if(!gotChars.length) return;
   
-  for(let k=0; k<n; k++){
-    if(targetWords[k] === got[k]){
-      out += `<span class="ok">${got[k]}</span> `;
-    } else {
-      out += `<span class="bad">${got[k]}</span> `;
-      errors++;
+  // ✅ دہرائے گئے حروف کو ہٹائیں (مد کے لیے)
+  let uniqueGotChars = "";
+  for(let k=0; k<gotChars.length; k++){
+    if(k===0 || gotChars[k] !== gotChars[k-1]){
+      uniqueGotChars += gotChars[k];
     }
   }
   
-  heardEl.innerHTML = out || "—";
+  // ✅ موازنہ کریں: کتنے حروف میل کھاتے ہیں
+  let matchCount = 0;
+  let mismatchCount = 0;
+  const minLen = Math.min(targetChars.length, uniqueGotChars.length);
   
-  // صرف غلطی پر پیغام — صحیح پر خاموش
-  if(errors > 0){
-    msgEl.innerHTML = `<b class="bad">⚠️ ${errors} لفظ(وں) میں فرق ہے</b>`;
+  for(let k=0; k<minLen; k++){
+    if(targetChars[k] === uniqueGotChars[k]){
+      matchCount++;
+    } else {
+      mismatchCount++;
+    }
+  }
+  
+  // باقی حروف جو صارف نے پڑھے لیکن قرآن میں نہیں
+  const extraChars = uniqueGotChars.length - targetChars.length;
+  
+  // ✅ لکھائی دکھائیں (حروف کی سطح پر)
+  // ہم صارف کے الفاظ کو لفظ بہ لفظ دکھائیں گے، لیکن جانچ حروف پر ہوگی
+  let displayWords = cleanText(finalText).split(" ").filter(Boolean);
+  let displayHtml = "";
+  let globalCharIndex = 0;
+  
+  for(let w=0; w<displayWords.length; w++){
+    const word = displayWords[w];
+    let wordHtml = "";
+    let wordHasError = false;
+    
+    // ہر حرف کو چیک کریں
+    for(let c=0; c<word.length; c++){
+      const targetChar = targetChars[globalCharIndex];
+      const gotChar = word[c];
+      
+      if(targetChar && targetChar === gotChar){
+        wordHtml += `<span class="ok">${gotChar}</span>`;
+      } else {
+        wordHtml += `<span class="bad">${gotChar}</span>`;
+        wordHasError = true;
+      }
+      globalCharIndex++;
+    }
+    
+    displayHtml += wordHtml + " ";
+  }
+  
+  heardEl.innerHTML = displayHtml || "—";
+  
+  // ✅ صرف غلطی پر پیغام — صحیح پر خاموش
+  if(mismatchCount > 0 || extraChars > 0){
+    let errorMsg = "";
+    if(mismatchCount > 0) errorMsg += `${mismatchCount} حرف غلط۔ `;
+    if(extraChars > 0) errorMsg += `${extraChars} اضافی حرف۔ `;
+    msgEl.innerHTML = `<b class="bad">⚠️ ${errorMsg}</b>`;
     statusEl.textContent = "⚠️ غلطی — صحیح پڑھیں";
   } else {
     msgEl.innerHTML = "";
     statusEl.textContent = "🎙️ سن رہا ہوں…";
   }
   
-  if(got.length >= targetWords.length && errors === 0){
+  // ✅ پوری سورت مکمل
+  if(uniqueGotChars.length >= targetChars.length && mismatchCount === 0){
     msgEl.innerHTML = '<b class="ok">✅ سورت مکمل</b>';
     statusEl.textContent = "✅ مکمل";
     listening = false;
@@ -142,23 +184,32 @@ function makeRecognition(){
     }
     interimText = interim;
     
-    // ✅ فوری لکھائی: final + interim دونوں ملا کر دکھائیں
+    // ✅ فوری لکھائی
     const displayText = (finalText + " " + interimText).trim();
     if(displayText){
-      let displayWords = words(displayText);
-      displayWords = removeRepeatedWords(displayWords);
+      let displayWords = cleanText(displayText).split(" ").filter(Boolean);
       let displayHtml = "";
-      for(let k=0; k<displayWords.length; k++){
-        if(k < targetWords.length && targetWords[k] === displayWords[k]){
-          displayHtml += `<span class="ok">${displayWords[k]}</span> `;
-        } else {
-          displayHtml += `<span class="bad">${displayWords[k]}</span> `;
+      const targetChars = getChars(fullSurah);
+      let globalCharIndex = 0;
+      
+      for(let w=0; w<displayWords.length; w++){
+        const word = displayWords[w];
+        let wordHtml = "";
+        for(let c=0; c<word.length; c++){
+          const targetChar = targetChars[globalCharIndex];
+          const gotChar = word[c];
+          if(targetChar && targetChar === gotChar){
+            wordHtml += `<span class="ok">${gotChar}</span>`;
+          } else {
+            wordHtml += `<span class="bad">${gotChar}</span>`;
+          }
+          globalCharIndex++;
         }
+        displayHtml += wordHtml + " ";
       }
       heardEl.innerHTML = displayHtml || "—";
     }
     
-    // ✅ جانچ صرف final ٹیکسٹ پر کریں (interim پر نہیں)
     if(finalText.trim()){
       checkFinalText();
     }
@@ -190,7 +241,6 @@ document.getElementById("stop").onclick=()=>{
 };
 
 // انیشیئلائز
-targetWords = words(fullSurah);
 const ws = fullSurah.split(" ");
 ayahEl.innerHTML = ws.map(w=>{
   if(w.includes("﴿") || w.includes("﴾")){
