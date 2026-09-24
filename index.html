@@ -56,94 +56,78 @@ const ayahEl=document.getElementById("ayah");
 const heardEl=document.getElementById("heard"), msgEl=document.getElementById("message");
 const statusEl=document.getElementById("status");
 
-// ✅ صرف حروف کو صاف کریں (اعراب، نشانات، وقف وغیرہ ہٹا دیں)
 function cleanText(s){
   return s.normalize("NFD")
-    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g,"")  // اعراب
+    .replace(/[\u064B-\u065F\u0670\u06D6-\u06ED]/g,"")
     .replace(/[إأٱآ]/g,"ا").replace(/ى/g,"ی").replace(/ي/g,"ی")
     .replace(/ؤ/g,"و").replace(/ئ/g,"ی")
-    .replace(/[ـۖۗۚۛۜۙۘۚۛ۞]/g,"")  // علامات وقف
+    .replace(/[ـۖۗۚۛۜۙۘۚۛ۞]/g,"")
     .replace(/[،؛,.!?؟]/g," ")
     .replace(/[^\u0600-\u06FF\s]/g," ")
     .replace(/\s+/g," ").trim();
 }
+function words(s){return cleanText(s).split(" ").filter(Boolean)}
 
-// ✅ صرف حروف (بغیر اسپیس) نکالیں
-function getChars(s){
-  return cleanText(s).replace(/\s+/g,""); // سارے اسپیس ہٹا دیں
-}
-
-// ✅ نیا موازنہ: حروف کی سطح پر (الفاظ کی سطح پر نہیں)
+// ✅ نیا فنکشن: Fuzzy Matching (لفظوں کو جوڑ کر موازنہ کریں)
 function checkFinalText(){
   if(!finalText.trim()) return;
   
-  // قرآن کے صاف حروف
-  const targetChars = getChars(fullSurah);
-  // صارف کے صاف حروف
-  const gotChars = getChars(finalText);
+  const targetWords = words(fullSurah);
+  const gotWords = words(finalText);
   
-  if(!gotChars.length) return;
+  if(!gotWords.length) return;
   
-  // ✅ دہرائے گئے حروف کو ہٹائیں (مد کے لیے)
-  let uniqueGotChars = "";
-  for(let k=0; k<gotChars.length; k++){
-    if(k===0 || gotChars[k] !== gotChars[k-1]){
-      uniqueGotChars += gotChars[k];
-    }
-  }
-  
-  // ✅ موازنہ کریں: کتنے حروف میل کھاتے ہیں
-  let matchCount = 0;
-  let mismatchCount = 0;
-  const minLen = Math.min(targetChars.length, uniqueGotChars.length);
-  
-  for(let k=0; k<minLen; k++){
-    if(targetChars[k] === uniqueGotChars[k]){
-      matchCount++;
-    } else {
-      mismatchCount++;
-    }
-  }
-  
-  // باقی حروف جو صارف نے پڑھے لیکن قرآن میں نہیں
-  const extraChars = uniqueGotChars.length - targetChars.length;
-  
-  // ✅ لکھائی دکھائیں (حروف کی سطح پر)
-  // ہم صارف کے الفاظ کو لفظ بہ لفظ دکھائیں گے، لیکن جانچ حروف پر ہوگی
-  let displayWords = cleanText(finalText).split(" ").filter(Boolean);
+  // ✅ لکھائی دکھائیں (لفظ بہ لفظ، لیکن صرف غلطی پر لال)
   let displayHtml = "";
-  let globalCharIndex = 0;
+  let errorCount = 0;
   
-  for(let w=0; w<displayWords.length; w++){
-    const word = displayWords[w];
-    let wordHtml = "";
-    let wordHasError = false;
+  // ہم لفظ بہ لفظ موازنہ کریں گے، لیکن اگر ایک لفظ قرآن میں دو الفاظ میں ہے، تو اسے نظر انداز کریں گے
+  let targetIdx = 0;
+  let gotIdx = 0;
+  
+  while(gotIdx < gotWords.length && targetIdx < targetWords.length){
+    const targetWord = targetWords[targetIdx];
+    const gotWord = gotWords[gotIdx];
     
-    // ہر حرف کو چیک کریں
-    for(let c=0; c<word.length; c++){
-      const targetChar = targetChars[globalCharIndex];
-      const gotChar = word[c];
-      
-      if(targetChar && targetChar === gotChar){
-        wordHtml += `<span class="ok">${gotChar}</span>`;
-      } else {
-        wordHtml += `<span class="bad">${gotChar}</span>`;
-        wordHasError = true;
+    if(targetWord === gotWord){
+      displayHtml += `<span class="ok">${gotWord}</span> `;
+      targetIdx++;
+      gotIdx++;
+    } else {
+      // ✅ چیک کریں: کیا اگلے لفظ کے ساتھ مل کر یہ قرآن کا لفظ بنتا ہے؟
+      if(gotIdx+1 < gotWords.length){
+        const combined = gotWords[gotIdx] + " " + gotWords[gotIdx+1];
+        const combinedNoSpace = gotWords[gotIdx] + gotWords[gotIdx+1];
+        
+        if(targetWord === combined || targetWord === combinedNoSpace){
+          // یہ دو الفاظ مل کر قرآن کا ایک لفظ بناتے ہیں
+          displayHtml += `<span class="ok">${gotWord} ${gotWords[gotIdx+1]}</span> `;
+          targetIdx++;
+          gotIdx += 2;
+          continue;
+        }
       }
-      globalCharIndex++;
+      
+      // اگر میل نہیں کھاتا، تو غلطی
+      displayHtml += `<span class="bad">${gotWord}</span> `;
+      errorCount++;
+      targetIdx++;
+      gotIdx++;
     }
-    
-    displayHtml += wordHtml + " ";
+  }
+  
+  // باقی الفاظ جو صارف نے پڑھے لیکن قرآن میں نہیں
+  while(gotIdx < gotWords.length){
+    displayHtml += `<span class="bad">${gotWords[gotIdx]}</span> `;
+    errorCount++;
+    gotIdx++;
   }
   
   heardEl.innerHTML = displayHtml || "—";
   
-  // ✅ صرف غلطی پر پیغام — صحیح پر خاموش
-  if(mismatchCount > 0 || extraChars > 0){
-    let errorMsg = "";
-    if(mismatchCount > 0) errorMsg += `${mismatchCount} حرف غلط۔ `;
-    if(extraChars > 0) errorMsg += `${extraChars} اضافی حرف۔ `;
-    msgEl.innerHTML = `<b class="bad">⚠️ ${errorMsg}</b>`;
+  // ✅ صرف غلطی پر پیغام
+  if(errorCount > 0){
+    msgEl.innerHTML = `<b class="bad">⚠️ ${errorCount} لفظ(وں) میں فرق ہے</b>`;
     statusEl.textContent = "⚠️ غلطی — صحیح پڑھیں";
   } else {
     msgEl.innerHTML = "";
@@ -151,7 +135,7 @@ function checkFinalText(){
   }
   
   // ✅ پوری سورت مکمل
-  if(uniqueGotChars.length >= targetChars.length && mismatchCount === 0){
+  if(gotWords.length >= targetWords.length && errorCount === 0){
     msgEl.innerHTML = '<b class="ok">✅ سورت مکمل</b>';
     statusEl.textContent = "✅ مکمل";
     listening = false;
@@ -187,25 +171,16 @@ function makeRecognition(){
     // ✅ فوری لکھائی
     const displayText = (finalText + " " + interimText).trim();
     if(displayText){
-      let displayWords = cleanText(displayText).split(" ").filter(Boolean);
+      let displayWords = words(displayText);
       let displayHtml = "";
-      const targetChars = getChars(fullSurah);
-      let globalCharIndex = 0;
+      const targetWords = words(fullSurah);
       
-      for(let w=0; w<displayWords.length; w++){
-        const word = displayWords[w];
-        let wordHtml = "";
-        for(let c=0; c<word.length; c++){
-          const targetChar = targetChars[globalCharIndex];
-          const gotChar = word[c];
-          if(targetChar && targetChar === gotChar){
-            wordHtml += `<span class="ok">${gotChar}</span>`;
-          } else {
-            wordHtml += `<span class="bad">${gotChar}</span>`;
-          }
-          globalCharIndex++;
+      for(let k=0; k<displayWords.length; k++){
+        if(k < targetWords.length && targetWords[k] === displayWords[k]){
+          displayHtml += `<span class="ok">${displayWords[k]}</span> `;
+        } else {
+          displayHtml += `<span class="bad">${displayWords[k]}</span> `;
         }
-        displayHtml += wordHtml + " ";
       }
       heardEl.innerHTML = displayHtml || "—";
     }
