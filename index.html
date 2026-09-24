@@ -49,7 +49,10 @@
 const fullSurah = "وَالسَّمَاءِ ذَاتِ الْبُرُوجِ ﴿١﴾ وَالْيَوْمِ الْمَوْعُودِ ﴿٢﴾ وَشَاهِدٍ وَمَشْهُودٍ ﴿٣﴾ قُتِلَ أَصْحَابُ الْأُخْدُودِ ﴿٤﴾ النَّارِ ذَاتِ الْوَقُودِ ﴿٥﴾ إِذْ هُمْ عَلَيْهَا قُعُودٌ ﴿٦﴾ وَهُمْ عَلَىٰ مَا يَفْعَلُونَ بِالْمُؤْمِنِينَ شُهُودٌ ﴿٧﴾ وَمَا نَقَمُوا مِنْهُمْ إِلَّا أَنْ يُؤْمِنُوا بِاللَّهِ الْعَزِيزِ الْحَمِيدِ ﴿٨﴾ الَّذِي لَهُ مُلْكُ السَّمَاوَاتِ وَالْأَرْضِ وَاللَّهُ عَلَىٰ كُلِّ شَيْءٍ شَهِيدٌ ﴿٩﴾ إِنَّ الَّذِينَ فَتَنُوا الْمُؤْمِنِينَ وَالْمُؤْمِنَاتِ ثُمَّ لَمْ يَتُوبُوا فَلَهُمْ عَذَابُ جَهَنَّمَ وَلَهُمْ عَذَابُ الْحَرِيقِ ﴿١٠﴾ إِنَّ الَّذِينَ آمَنُوا وَعَمِلُوا الصَّالِحَاتِ لَهُمْ جَنَّاتٌ تَجْرِي مِنْ تَحْتِهَا الْأَنْهَارُ ذَٰلِكَ الْفَوْزُ الْكَبِيرُ ﴿١١﴾ إِنَّ بَطْشَ رَبِّكَ لَشَدِيدٌ ﴿١٢﴾ إِنَّهُ هُوَ يُبْدِئُ وَيُعِيدُ ﴿١٣﴾ وَهُوَ الْغَفُورُ الْوَدُودُ ﴿١٤﴾ ذُو الْعَرْشِ الْمَجِيدُ ﴿١٥﴾ فَعَّالٌ لِمَا يُرِيدُ ﴿١٦﴾ هَلْ أَتَاكَ حَدِيثُ الْجُنُودِ ﴿١٧﴾ فِرْعَوْنَ وَثَمُودَ ﴿١٨﴾ بَلِ الَّذِينَ كَفَرُوا فِي تَكْذِيبٍ ﴿١٩﴾ وَاللَّهُ مِنْ وَرَائِهِمْ مُحِيطٌ ﴿٢٠﴾ بَلْ هُوَ قُرْآنٌ مَجِيدٌ ﴿٢١﴾ فِي لَوْحٍ مَحْفُوظٍ ﴿٢٢﴾";
 
 let targetWords = [];
-let recognition=null, listening=false, finalText="";
+let recognition=null, listening=false;
+let finalText=""; // صرف مکمل (final) ٹیکسٹ
+let interimText=""; // عبوری (interim) ٹیکسٹ
+
 const ayahEl=document.getElementById("ayah");
 const heardEl=document.getElementById("heard"), msgEl=document.getElementById("message");
 const statusEl=document.getElementById("status");
@@ -76,11 +79,11 @@ function removeRepeatedWords(arr){
   return cleaned;
 }
 
-// ✅ صرف غلطی کی نشاندہی — صحیح پر بالکل خاموش
-function checkErrors(spoken){
-  if(!spoken || !spoken.length) return;
+// ✅ صرف مکمل (final) ٹیکسٹ کی جانچ
+function checkFinalText(){
+  if(!finalText.trim()) return;
   
-  let got = words(spoken);
+  let got = words(finalText);
   got = removeRepeatedWords(got);
   
   let out = "", errors = 0;
@@ -95,27 +98,17 @@ function checkErrors(spoken){
     }
   }
   
-  // باقی الفاظ جو صارف نے پڑھے لیکن قرآن میں نہیں
-  if(got.length > targetWords.length){
-    for(let k=targetWords.length; k<got.length; k++){
-      out += `<span class="bad">${got[k]}</span> `;
-      errors++;
-    }
-  }
-  
   heardEl.innerHTML = out || "—";
   
-  // ✅ صرف غلطی پر پیغام — صحیح پر کچھ نہیں
+  // صرف غلطی پر پیغام — صحیح پر خاموش
   if(errors > 0){
     msgEl.innerHTML = `<b class="bad">⚠️ ${errors} لفظ(وں) میں فرق ہے</b>`;
     statusEl.textContent = "⚠️ غلطی — صحیح پڑھیں";
   } else {
-    // صحیح ہے تو بالکل خاموش
     msgEl.innerHTML = "";
     statusEl.textContent = "🎙️ سن رہا ہوں…";
   }
   
-  // پوری سورت مکمل
   if(got.length >= targetWords.length && errors === 0){
     msgEl.innerHTML = '<b class="ok">✅ سورت مکمل</b>';
     statusEl.textContent = "✅ مکمل";
@@ -129,7 +122,11 @@ function makeRecognition(){
   if(!SR){statusEl.textContent="اس براؤزر میں آواز پہچاننے کی سہولت نہیں۔ Chrome استعمال کریں۔";return null;}
   const r=new SR();
   r.lang="ar-SA"; r.continuous=true; r.interimResults=true;
-  r.onstart=()=>{listening=true;finalText="";statusEl.textContent="🎙️ سن رہا ہوں…";};
+  
+  r.onstart=()=>{
+    listening=true; finalText=""; interimText="";
+    statusEl.textContent="🎙️ سن رہا ہوں…";
+  };
   r.onerror=e=>{statusEl.textContent="مائیک کا مسئلہ: "+e.error;};
   r.onend=()=>{if(listening){try{r.start()}catch(e){}}else statusEl.textContent="سننا بند";};
   
@@ -137,14 +134,17 @@ function makeRecognition(){
     let interim="";
     for(let j=e.resultIndex;j<e.results.length;j++){
       const t=e.results[j][0].transcript.trim();
-      if(e.results[j].isFinal) finalText+=(finalText?" ":"")+t;
-      else interim+=(interim?" ":"")+t;
+      if(e.results[j].isFinal){
+        finalText += (finalText ? " " : "") + t;
+      } else {
+        interim += (interim ? " " : "") + t;
+      }
     }
+    interimText = interim;
     
-    // ✅ فوری لکھائی — جو پڑھا جائے فوراً دکھائیں
-    const displayText = (finalText + " " + interim).trim();
+    // ✅ فوری لکھائی: final + interim دونوں ملا کر دکھائیں
+    const displayText = (finalText + " " + interimText).trim();
     if(displayText){
-      // فوری لکھائی دکھائیں (بغیر جانچ کے)
       let displayWords = words(displayText);
       displayWords = removeRepeatedWords(displayWords);
       let displayHtml = "";
@@ -156,11 +156,11 @@ function makeRecognition(){
         }
       }
       heardEl.innerHTML = displayHtml || "—";
-      
-      // فوری جانچ
-      if(finalText.trim()){
-        checkErrors(finalText.trim());
-      }
+    }
+    
+    // ✅ جانچ صرف final ٹیکسٹ پر کریں (interim پر نہیں)
+    if(finalText.trim()){
+      checkFinalText();
     }
   };
   return r;
@@ -181,7 +181,7 @@ document.getElementById("micTest").onclick=async()=>{
 };
 document.getElementById("start").onclick=()=>{
   if(!recognition) recognition=makeRecognition();
-  if(recognition){listening=true;finalText="";try{recognition.start()}catch(e){}}
+  if(recognition){listening=true;finalText="";interimText="";try{recognition.start()}catch(e){}}
 };
 document.getElementById("stop").onclick=()=>{
   listening=false;
